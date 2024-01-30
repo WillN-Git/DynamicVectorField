@@ -1,0 +1,23 @@
+#include "/Engine/Public/Platform.ush"
+
+RWTexture2D<float4> OutputTexture;
+float2 Dimensions;
+uint Period;
+float4 Color;
+
+[numthreads(32, 32, 1)]
+void MainCS(uint3 Gid : SV_GroupID,
+            uint3 DTid : SV_DispatchThreadID,
+            uint3 GTid : SV_GroupThreadID,
+            uint3 GI : SV_GroupIndex
+)
+{
+    float2 p = DTid.xy / float2(32, 32);
+
+    float3 finalColor = float3(0.0, 0.0, 0.0);
+
+    finalColor = float3(frac(p * Period), 0.0);
+
+    //OutputTexture[DTid.xy] = float4(finalColor, 1.0);
+    OutputTexture[DTid.xy] = Color;
+}
