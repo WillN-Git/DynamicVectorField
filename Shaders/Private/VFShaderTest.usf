@@ -1,0 +1,89 @@
+#include "/Engine/Public/Platform.ush"
+
+RWTexture3D<float4> OutputTexture;
+float3 InDimensions;
+float4 InColor;
+float C;
+
+// Swirl vector field equation
+float3 swirl(float3 p)
+{
+    float3 vec = float3(p.y - p.x, -p.x - p.y, p.z);
+    vec = (vec + float3(1.0, 1.0, 1.0)) / 2.0;
+
+    return vec;
+}
+
+// Random vector field equation
+float3 customVF(in float3 p)
+{
+    float x_comp = -3 + 6 * p.x - 4 * p.x * (p.y + 1) - 4 * p.z;
+    float y_comp = 12 * p.x - 4 * p.x * p.x - 12 * p.z + 4 * p.z * p.z;
+    float z_comp = 3 + 4 * p.x - 4 * p.x * (p.y + 1) - 6 * p.z + 4 * (p.y + 1) * p.z;
+
+    return float3(x_comp, y_comp, z_comp);
+}
+
+// Random vector field equation
+float3 customVF2(float3 p)
+{
+    float x_comp = p.x * p.y;
+    float y_comp = p.x * p.x / 2 - p.y;
+    float z_comp = p.z;
+
+    float3 vec = float3(x_comp, y_comp, z_comp);
+    vec = (vec + float3(1.0, 1.0, 1.0)) / 2.0;
+
+    return vec;
+}
+
+// Gravity vector field equation
+float4 gravityAttraction(in float3 p)
+{
+    float G = 1;
+    float m = 1;
+    float M = 1;
+    float r = length(p);
+    
+    float3 vec = -G * M * m * p / sqrt(r * r * r);
+    
+    // Go back to color space
+    vec = (vec + float3(1.0, 1.0, 1.0)) / 2.0;
+    
+    return float4(vec, 1.0 - r);
+}
+
+// Wall vector field equation
+float3 wall(float3 p)
+{
+    float x_comp = -p.x / sqrt(p.x * p.x + p.y * p.y + 4);
+    float y_comp = p.y / sqrt(p.x * p.x + p.y * p.y + 4);
+    float z_comp = p.z;
+    
+    float3 vec = float3(x_comp, y_comp, z_comp);
+    vec = (vec + float3(1.0, 1.0, 1.0)) / 2.0;
+
+    return vec;
+}
+
+[numthreads(8, 8, 8)]
+void MainCS(
+    uint3 Gid : SV_GroupID,
+    uint3 DTid : SV_DispatchThreadID,
+    uint3 GTid : SV_GroupThreadID,
+    uint3 GI : SV_GroupIndex
+)
+{
+    float3 rst = DTid / InDimensions; // [0, 1]x[0, 1]x[0, 1]
+    float3 rst_centered = (DTid - InDimensions * 0.5) / (InDimensions * 0.5); // [-1, 1]x[-1, 1]x[-1, 1]
+
+    float3 finalColor1 = lerp(rst, rst_centered, float3(C, C, C));
+    
+    float4 finalColor2 = gravityAttraction(rst_centered);
+    float3 finalColor3 = customVF(rst_centered);
+    float3 finalColor4 = wall(rst_centered);
+    float3 finalColor5 = swirl(rst_centered);
+    float3 finalColor6 = customVF2(rst_centered);
+    
+    OutputTexture[DTid] = float4(finalColor4, 1.0);
+}
